@@ -28,7 +28,7 @@ A hyper-realistic, modern, and cinematic interactive web application built with 
 ## 🚀 Live Demo
 
 Experience the live interactive application here:  
-👉 [https://rabeesayousuf.github.io/romantic-interactive-eye/](https://rabeesayousuf.github.io/romantic-interactive-eye/)
+👉https://rabeesa-khan.github.io/interactive-eye/
 
 ---
 
