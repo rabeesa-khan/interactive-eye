@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full w-full overflow-hidden bg-black select-none">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hyper-Realistic Eye & Cosmos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Playfair Display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #030204;
+      font-family: 'Inter', sans-serif;
+      touch-action: none;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    .glow-btn {
+      box-shadow: 0 0 15px rgba(244, 114, 182, 0.25), inset 0 0 10px rgba(244, 114, 182, 0.15);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glow-btn:hover {
+      box-shadow: 0 0 25px rgba(244, 114, 182, 0.6), inset 0 0 15px rgba(244, 114, 182, 0.35);
+      border-color: rgba(251, 207, 232, 0.9);
+    }
+  </style>
+</head>
+<body class="h-full w-full bg-black text-white relative">
+
+  <!-- Main Canvas overlaying screen -->
+  <canvas id="mainCanvas"></canvas>
+
+  <!-- Minimalist Hint overlay -->
+  <div id="hintOverlay" class="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none text-center transition-opacity duration-1000 opacity-80">
+    <p class="text-xs tracking-[0.3em] uppercase text-rose-200/70 font-light drop-shadow-md">
+      Tap the pupil to look deeper
+    </p>
+    <div class="w-1 h-8 mx-auto mt-3 rounded-full bg-gradient-to-b from-rose-400/50 to-transparent animate-pulse"></div>
+  </div>
+
+  <!-- Replay / Reset UI Button -->
+  <button id="resetBtn" title="Reset Experience" 
+          class="hidden absolute top-6 right-6 z-20 px-5 py-2.5 text-xs tracking-widest uppercase border border-rose-400/40 rounded-full bg-black/50 backdrop-blur-md text-rose-100/90 glow-btn cursor-pointer">
+    ♡ Re-Observe
+  </button>
+
+  <script>
+    /**
+     * Warm & Romantic Eye Experience
+     */
+    (function () {
+      const canvas = document.getElementById('mainCanvas');
+      const ctx = canvas.getContext('2d');
+      const hintOverlay = document.getElementById('hintOverlay');
+      const resetBtn = document.getElementById('resetBtn');
+
+      let width, height, dpr, minDim;
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+        minDim = Math.min(width, height);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // State Management: 0: EYE_IDLE, 1: ZOOMING_IN, 2: TEXT_REVEAL, 3: ROMANTIC_HEART
+      let state = 0;
+
+      const mouse = { x: width / 2, y: height / 2 };
+      const eyeLook = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+      window.addEventListener('pointermove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      });
+
+      // Eyelid / Blink Logic
+      let blinkVal = 0;
+      let isBlinking = false;
+      let nextBlinkTime = Date.now() + 3000 + Math.random() * 4000;
+
+      function triggerBlink(duration = 260, callback = null) {
+        if (isBlinking) return;
+        isBlinking = true;
+        let start = performance.now();
+        function animateBlink(now) {
+          let elapsed = now - start;
+          let p = elapsed / duration;
+          if (p < 0.5) {
+            blinkVal = p * 2;
+          } else if (p < 1) {
+            blinkVal = (1 - p) * 2;
+          } else {
+            blinkVal = 0;
+            isBlinking = false;
+            if (callback) callback();
+            return;
+          }
+          requestAnimationFrame(animateBlink);
+        }
+        requestAnimationFrame(animateBlink);
+      }
+
+      // Pre-generated Sclera Capillaries
+      const capillaries = [];
+      for (let i = 0; i < 24; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let branch = [];
+        let r = 0.45;
+        let currentAngle = angle;
+        let steps = 8 + Math.floor(Math.random() * 8);
+        for (let s = 0; s < steps; s++) {
+          r += 0.03 + Math.random() * 0.03;
+          currentAngle += (Math.random() - 0.5) * 0.25;
+          branch.push({ r, a: currentAngle, w: Math.max(0.3, 1.5 - s * 0.15) });
+        }
+        capillaries.push(branch);
+      }
+
+      // Iris Fibers (Warm Amber, Honey & Rich Hazel)
+      const irisFibers = [];
+      for (let i = 0; i < 420; i++) {
+        irisFibers.push({
+          angle: (i / 420) * Math.PI * 2 + (Math.random() - 0.5) * 0.02,
+          length: 0.38 + Math.random() * 0.62,
+          alpha: 0.2 + Math.random() * 0.6,
+          width: 0.6 + Math.random() * 1.4,
+          color: Math.random() > 0.4 ? 'rgba(235, 175, 95, ' : (Math.random() > 0.5 ? 'rgba(215, 115, 60, ' : 'rgba(255, 235, 205, ')
+        });
+      }
+
+      // Eyelashes
+      const topLashes = [];
+      const bottomLashes = [];
+      const lashCount = 65;
+      for (let i = 0; i < lashCount; i++) {
+        let t = i / (lashCount - 1);
+        topLashes.push({
+          t: t,
+          length: 26 + Math.sin(t * Math.PI) * 36 + Math.random() * 10,
+          angleOffset: (t - 0.5) * 0.8 + (Math.random() - 0.5) * 0.1 - 0.4,
+          curl: 16 + Math.random() * 10
+        });
+        bottomLashes.push({
+          t: t,
+          length: 12 + Math.sin(t * Math.PI) * 18 + Math.random() * 6,
+          angleOffset: (t - 0.5) * 0.6 + (Math.random() - 0.5) * 0.1 + 0.3,
+          curl: 8 + Math.random() * 6
+        });
+      }
+
+      // Warm Floating Rose Petals
+      const petals = [];
+      const numPetals = 45;
+      for (let i = 0; i < numPetals; i++) {
+        petals.push({
+          x: (Math.random() - 0.5) * width * 1.2,
+          y: (Math.random() - 0.5) * height * 1.2,
+          size: 10 + Math.random() * 16,
+          speedY: 0.4 + Math.random() * 0.8,
+          speedX: (Math.random() - 0.5) * 0.5,
+          rot: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.03,
+          opacity: 0.3 + Math.random() * 0.6,
+          color: Math.random() > 0.5 ? 'rgba(244, 114, 182, ' : 'rgba(225, 29, 72, '
+        });
+      }
+
+      // Warm Bokeh Light Orbs
+      const bokehOrbs = [];
+      for (let i = 0; i < 50; i++) {
+        bokehOrbs.push({
+          x: (Math.random() - 0.5) * width * 1.4,
+          y: (Math.random() - 0.5) * height * 1.4,
+          radius: 15 + Math.random() * 45,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          alpha: 0.15 + Math.random() * 0.3,
+          color: Math.random() > 0.5 ? 'rgba(251, 207, 232, ' : 'rgba(253, 164, 175, '
+        });
+      }
+
+      // Interactive Shockwaves & Floating Sparks
+      const shockwaves = [];
+      const sparks = [];
+
+      function triggerShockwave(x, y) {
+        shockwaves.push({
+          x: x,
+          y: y,
+          radius: 15,
+          maxRadius: Math.max(width, height) * 0.5,
+          alpha: 1,
+          width: 6
+        });
+
+        // Spawn extra floating rose petals and sparks from touch point
+        for (let i = 0; i < 18; i++) {
+          let ang = Math.random() * Math.PI * 2;
+          let spd = 2 + Math.random() * 5;
+          sparks.push({
+            x: x - width / 2,
+            y: y - height / 2,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            size: 3 + Math.random() * 5,
+            alpha: 1,
+            life: 1.0,
+            hue: 340 + Math.random() * 25
+          });
+        }
+      }
+
+      // Camera & Opacity parameters
+      let cameraZoom = 1;
+      let eyeOpacity = 1;
+      let textOpacity = 0;
+      let textScale = 0.5;
+      let heartOpacity = 0;
+
+      // Soft Double-beat Heartbeat Sound Synthesizer
+      let audioCtx = null;
+      function playHeartbeatSound() {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          
+          let now = audioCtx.currentTime;
+          
+          // Lub (Soft Deep Beat)
+          let osc1 = audioCtx.createOscillator();
+          let gain1 = audioCtx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(55, now);
+          osc1.frequency.exponentialRampToValueAtTime(28, now + 0.15);
+          gain1.gain.setValueAtTime(0.35, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.16);
+
+          // Dub
+          let osc2 = audioCtx.createOscillator();
+          let gain2 = audioCtx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(70, now + 0.22);
+          osc2.frequency.exponentialRampToValueAtTime(32, now + 0.34);
+          gain2.gain.setValueAtTime(0.28, now + 0.22);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.start(now + 0.22);
+          osc2.stop(now + 0.35);
+        } catch (e) {}
+      }
+
+      // Interaction Handler
+      function handleInteraction(clientX, clientY) {
+        let dx = clientX - width / 2;
+        let dy = clientY - height / 2;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (state === 0) {
+          if (dist < minDim * 0.28) {
+            startZoomSequence();
+          }
+        } else if (state === 3) {
+          triggerShockwave(clientX, clientY);
+          playHeartbeatSound();
+        }
+      }
+
+      window.addEventListener('pointerdown', (e) => {
+        handleInteraction(e.clientX, e.clientY);
+      });
+
+      function startZoomSequence() {
+        state = 1;
+        hintOverlay.classList.add('opacity-0');
+        
+        triggerBlink(220, () => {
+          let startTime = performance.now();
+          let zoomDuration = 2600;
+
+          function stepZoom(now) {
+            let elapsed = now - startTime;
+            let p = Math.min(1, elapsed / zoomDuration);
+            let ease = p * p * p * p;
+
+            cameraZoom = 1 + ease * 30;
+            eyeOpacity = Math.max(0, 1 - ease * 1.35);
+
+            if (p < 1) {
+              requestAnimationFrame(stepZoom);
+            } else {
+              state = 2;
+              startTextSequence();
+            }
+          }
+          requestAnimationFrame(stepZoom);
+        });
+      }
+
+      function startTextSequence() {
+        let startTime = performance.now();
+        let duration = 3800;
+
+        function stepText(now) {
+          let elapsed = now - startTime;
+          let p = Math.min(1, elapsed / duration);
+
+          if (p < 0.4) {
+            let tp = p / 0.4;
+            textOpacity = Math.sin(tp * Math.PI * 0.5);
+            textScale = 0.85 + tp * 0.2;
+          } else if (p < 0.7) {
+            textOpacity = 1;
+            textScale = 1.05 + (p - 0.4) * 0.08;
+          } else {
+            let dp = (p - 0.7) / 0.3;
+            textOpacity = 1 - dp;
+            textScale = 1.13 + dp * 0.2;
+            heartOpacity = dp; // Soft cross-fade to Heart
+          }
+
+          if (p < 1) {
+            requestAnimationFrame(stepText);
+          } else {
+            state = 3;
+            heartOpacity = 1;
+            resetBtn.classList.remove('hidden');
+          }
+        }
+        requestAnimationFrame(stepText);
+      }
+
+      // Reset Button
+      resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state = 0;
+        cameraZoom = 1;
+        eyeOpacity = 1;
+        textOpacity = 0;
+        textScale = 0.5;
+        heartOpacity = 0;
+        resetBtn.classList.add('hidden');
+        hintOverlay.classList.remove('opacity-0');
+      });
+
+      // --- PROCEDURAL EYE RENDERING ---
+      function drawEye(cx, cy, radius) {
+        if (eyeOpacity <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = eyeOpacity;
+
+        eyeLook.x += (eyeLook.targetX - eyeLook.x) * 0.08;
+        eyeLook.y += (eyeLook.targetY - eyeLook.y) * 0.08;
+
+        let maxLookOffset = radius * 0.22;
+        let lookX = (mouse.x - width / 2) / (width / 2);
+        let lookY = (mouse.y - height / 2) / (height / 2);
+        eyeLook.targetX = lookX * maxLookOffset;
+        eyeLook.targetY = lookY * maxLookOffset;
+
+        ctx.translate(cx, cy);
+        ctx.scale(cameraZoom, cameraZoom);
+
+        function setEyeClipPath() {
+          ctx.beginPath();
+          ctx.moveTo(-radius * 1.55, 0);
+          ctx.bezierCurveTo(-radius * 0.8, -radius * 0.95, radius * 0.8, -radius * 0.95, radius * 1.55, 0);
+          ctx.bezierCurveTo(radius * 0.8, radius * 0.9, -radius * 0.8, radius * 0.9, -radius * 1.55, 0);
+          ctx.closePath();
+        }
+
+        // 1. Sclera
+        ctx.save();
+        setEyeClipPath();
+        ctx.clip();
+
+        let scleraGrad = ctx.createRadialGradient(eyeLook.x * 0.3, eyeLook.y * 0.3, radius * 0.2, 0, 0, radius * 1.6);
+        scleraGrad.addColorStop(0, '#fdfcfb');
+        scleraGrad.addColorStop(0.6, '#f4ece6');
+        scleraGrad.addColorStop(0.85, '#e5d7cc');
+        scleraGrad.addColorStop(1, '#ab968a');
+
+        ctx.fillStyle = scleraGrad;
+        ctx.fill();
+
+        // Capillaries
+        ctx.save();
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(195, 45, 45, 0.18)';
+        for (let branch of capillaries) {
+          ctx.beginPath();
+          let startR = branch[0].r * radius * 2;
+          let startA = branch[0].a;
+          ctx.moveTo(Math.cos(startA) * startR, Math.sin(startA) * startR);
+          for (let b of branch) {
+            let br = b.r * radius * 2;
+            let bx = Math.cos(b.a) * br;
+            let by = Math.sin(b.a) * br;
+            ctx.lineWidth = b.w;
+            ctx.lineTo(bx, by);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Tear Duct Warm Glow
+        let tearGlow = ctx.createRadialGradient(-radius * 1.45, 0, 0, -radius * 1.45, 0, radius * 0.35);
+        tearGlow.addColorStop(0, 'rgba(255, 180, 170, 0.6)');
+        tearGlow.addColorStop(1, 'rgba(255, 180, 170, 0)');
+        ctx.fillStyle = tearGlow;
+        ctx.fill();
+
+        // Inner Shadow
+        let innerShadow = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, radius * 1.5);
+        innerShadow.addColorStop(0, 'rgba(0,0,0,0)');
+        innerShadow.addColorStop(0.7, 'rgba(40,15,20,0.12)');
+        innerShadow.addColorStop(1, 'rgba(20,5,10,0.65)');
+        ctx.fillStyle = innerShadow;
+        ctx.fill();
+
+        // 2. Iris & Pupil
+        ctx.save();
+        ctx.translate(eyeLook.x, eyeLook.y);
+
+        let irisRadius = radius * 0.54;
+
+        let limbalGrad = ctx.createRadialGradient(0, 0, irisRadius * 0.85, 0, 0, irisRadius);
+        limbalGrad.addColorStop(0, 'rgba(20, 10, 5, 0)');
+        limbalGrad.addColorStop(0.85, 'rgba(20, 10, 5, 0.7)');
+        limbalGrad.addColorStop(1, 'rgba(10, 5, 2, 0.98)');
+
+        let irisBaseGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, irisRadius);
+        irisBaseGrad.addColorStop(0, '#2d180c');
+        irisBaseGrad.addColorStop(0.25, '#4a2b16');
+        irisBaseGrad.addColorStop(0.55, '#8c5324');
+        irisBaseGrad.addColorStop(0.8, '#5e3416');
+        irisBaseGrad.addColorStop(1, '#1f0d05');
+
+        ctx.beginPath();
+        ctx.arc(0, 0, irisRadius, 0, Math.PI * 2);
+        ctx.fillStyle = irisBaseGrad;
+        ctx.fill();
+
+        // Radial Iris Strands
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (let f of irisFibers) {
+          ctx.beginPath();
+          let r1 = irisRadius * 0.22;
+          let r2 = irisRadius * f.length;
+          let angle = f.angle;
+
+          let x1 = Math.cos(angle) * r1;
+          let y1 = Math.sin(angle) * r1;
+          let x2 = Math.cos(angle) * r2;
+          let y2 = Math.sin(angle) * r2;
+
+          ctx.strokeStyle = f.color + f.alpha + ')';
+          ctx.lineWidth = f.width;
+          ctx.moveTo(x1, y1);
+          let cx1 = Math.cos(angle + 0.04) * (r1 + r2) * 0.5;
+          let cy1 = Math.sin(angle + 0.04) * (r1 + r2) * 0.5;
+          ctx.quadraticCurveTo(cx1, cy1, x2, y2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Collarette Warm Golden Ring
+        let collaretteGrad = ctx.createRadialGradient(0, 0, irisRadius * 0.22, 0, 0, irisRadius * 0.48);
+        collaretteGrad.addColorStop(0, 'rgba(245, 175, 75, 0.85)');
+        collaretteGrad.addColorStop(0.5, 'rgba(215, 125, 45, 0.45)');
+        collaretteGrad.addColorStop(1, 'rgba(120, 60, 15, 0)');
+        ctx.beginPath();
+        ctx.arc(0, 0, irisRadius * 0.48, 0, Math.PI * 2);
+        ctx.fillStyle = collaretteGrad;
+        ctx.fill();
+
+        // Limbal Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, irisRadius, 0, Math.PI * 2);
+        ctx.fillStyle = limbalGrad;
+        ctx.fill();
+
+        // Pupil
+        let pupilRadius = irisRadius * (0.28 + Math.sin(Date.now() * 0.002) * 0.015);
+        ctx.beginPath();
+        ctx.arc(0, 0, pupilRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#020102';
+        ctx.fill();
+
+        ctx.restore(); // Restore Iris Offset
+
+        // 3. Corneal Specular Highlights
+        let glintGrad = ctx.createLinearGradient(-radius * 0.3, -radius * 0.4, -radius * 0.1, -radius * 0.1);
+        glintGrad.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
+        glintGrad.addColorStop(0.5, 'rgba(255, 250, 245, 0.45)');
+        glintGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.beginPath();
+        ctx.ellipse(-irisRadius * 0.35 + eyeLook.x * 0.15, -irisRadius * 0.35 + eyeLook.y * 0.15, irisRadius * 0.28, irisRadius * 0.16, -Math.PI * 0.25, 0, Math.PI * 2);
+        ctx.fillStyle = glintGrad;
+        ctx.fill();
+
+        // Soft Secondary Warm Reflection
+        ctx.beginPath();
+        ctx.arc(irisRadius * 0.4 + eyeLook.x * 0.15, irisRadius * 0.3 + eyeLook.y * 0.15, irisRadius * 0.065, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 240, 230, 0.6)';
+        ctx.fill();
+
+        // Wet Water-line highlight
+        ctx.beginPath();
+        ctx.arc(0, radius * 0.02, radius * 1.48, Math.PI * 0.2, Math.PI * 0.8);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        ctx.restore(); // Restore Clip Path
+
+        // 4. Eyelids
+        let lidCloseOffset = blinkVal * radius * 1.1;
+        ctx.fillStyle = '#1a0e12';
+
+        // Top Lid
+        ctx.beginPath();
+        ctx.moveTo(-radius * 1.7, -radius * 1.5);
+        ctx.lineTo(radius * 1.7, -radius * 1.5);
+        ctx.lineTo(radius * 1.7, 0 + lidCloseOffset);
+        ctx.bezierCurveTo(radius * 0.8, -radius * 0.9 + lidCloseOffset * 0.8, -radius * 0.8, -radius * 0.9 + lidCloseOffset * 0.8, -radius * 1.7, 0 + lidCloseOffset);
+        ctx.closePath();
+        ctx.fill();
+
+        // Bottom Lid
+        ctx.beginPath();
+        ctx.moveTo(-radius * 1.7, radius * 1.5);
+        ctx.lineTo(radius * 1.7, radius * 1.5);
+        ctx.lineTo(radius * 1.7, 0 - lidCloseOffset);
+        ctx.bezierCurveTo(radius * 0.8, radius * 0.85 - lidCloseOffset * 0.8, -radius * 0.8, radius * 0.85 - lidCloseOffset * 0.8, -radius * 1.7, 0 - lidCloseOffset);
+        ctx.closePath();
+        ctx.fill();
+
+        // 5. Lashes
+        ctx.save();
+        ctx.strokeStyle = '#070304';
+        ctx.lineCap = 'round';
+
+        for (let lash of topLashes) {
+          let lx = (-1.55 + lash.t * 3.1) * radius;
+          let ly = Math.sin(lash.t * Math.PI) * (-radius * 0.78) + lidCloseOffset;
+          let angle = -Math.PI * 0.5 + lash.angleOffset;
+          let endX = lx + Math.cos(angle) * lash.length;
+          let endY = ly + Math.sin(angle) * lash.length;
+          let controlX = lx + Math.cos(angle + 0.2) * (lash.length * 0.5);
+          let controlY = ly + Math.sin(angle + 0.2) * (lash.length * 0.5) - lash.curl;
+
+          ctx.beginPath();
+          ctx.lineWidth = 1.8;
+          ctx.moveTo(lx, ly);
+          ctx.quadraticCurveTo(controlX, controlY, endX, endY);
+          ctx.stroke();
+        }
+
+        for (let lash of bottomLashes) {
+          let lx = (-1.5 + lash.t * 3.0) * radius;
+          let ly = Math.sin(lash.t * Math.PI) * (radius * 0.72) - lidCloseOffset;
+          let angle = Math.PI * 0.5 + lash.angleOffset;
+          let endX = lx + Math.cos(angle) * lash.length;
+          let endY = ly + Math.sin(angle) * lash.length;
+          let controlX = lx + Math.cos(angle - 0.2) * (lash.length * 0.5);
+          let controlY = ly + Math.sin(angle - 0.2) * (lash.length * 0.5) + lash.curl;
+
+          ctx.beginPath();
+          ctx.lineWidth = 1.2;
+          ctx.moveTo(lx, ly);
+          ctx.quadraticCurveTo(controlX, controlY, endX, endY);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ctx.restore();
+      }
+
+      // --- ROMANTIC SEQUENCE RENDERER ---
+      function drawRomanticSequence(timestamp) {
+        let cx = width / 2;
+        let cy = height / 2;
+
+        if (state < 1) return;
+
+        // 1. Shockwaves (Soft Pink & Rose Expanding Rings)
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+          let sw = shockwaves[i];
+          sw.radius += (sw.maxRadius - sw.radius) * 0.04;
+          sw.alpha *= 0.93;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(244, 114, 182, ${sw.alpha * 0.75})`;
+          ctx.lineWidth = sw.width;
+          ctx.shadowColor = 'rgba(251, 113, 133, 0.8)';
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+          ctx.restore();
+
+          if (sw.alpha < 0.01) shockwaves.splice(i, 1);
+        }
+
+        // 2. Warm Bokeh Orbs
+        for (let orb of bokehOrbs) {
+          orb.x += orb.vx;
+          orb.y += orb.vy;
+
+          if (orb.x < -width / 2) orb.x = width / 2;
+          if (orb.x > width / 2) orb.x = -width / 2;
+          if (orb.y < -height / 2) orb.y = height / 2;
+          if (orb.y > height / 2) orb.y = -height / 2;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx + orb.x, cy + orb.y, orb.radius, 0, Math.PI * 2);
+          ctx.fillStyle = orb.color + orb.alpha + ')';
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 3. Floating Rose Petals Animation
+        ctx.save();
+        for (let p of petals) {
+          p.y += p.speedY;
+          p.x += Math.sin(p.y * 0.01) * 0.5 + p.speedX;
+          p.rot += p.rotSpeed;
+
+          if (p.y > height / 2 + 50) {
+            p.y = -height / 2 - 50;
+            p.x = (Math.random() - 0.5) * width * 1.2;
+          }
+
+          ctx.save();
+          ctx.translate(cx + p.x, cy + p.y);
+          ctx.rotate(p.rot);
+
+          // Draw Soft Organic Petal Shape
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.bezierCurveTo(-p.size, -p.size * 0.8, -p.size * 1.2, p.size * 0.6, 0, p.size * 1.4);
+          ctx.bezierCurveTo(p.size * 1.2, p.size * 0.6, p.size, -p.size * 0.8, 0, 0);
+          ctx.fillStyle = p.color + p.opacity + ')';
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.restore();
+
+        // 4. Interactive Sparks (Burst on Heart Touch)
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          let s = sparks[i];
+          s.x += s.vx;
+          s.y += s.vy;
+          s.life -= 0.02;
+          s.alpha = Math.max(0, s.life);
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx + s.x, cy + s.y, Math.max(0.1, s.size * s.life), 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${s.hue}, 95%, 75%, ${s.alpha})`;
+          ctx.shadowColor = `hsla(${s.hue}, 100%, 75%, 0.9)`;
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.restore();
+
+          if (s.life <= 0) sparks.splice(i, 1);
+        }
+
+        // 5. 'I LOVE YOU' Warm Text Reveal
+        if (textOpacity > 0) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.scale(textScale, textScale);
+          ctx.globalAlpha = textOpacity;
+
+          // Soft Golden & Rose Warm Light Rays Glow
+          let textGlow = ctx.createRadialGradient(0, 0, 10, 0, 0, 260);
+          textGlow.addColorStop(0, 'rgba(251, 113, 133, 0.4)');
+          textGlow.addColorStop(0.5, 'rgba(244, 114, 182, 0.18)');
+          textGlow.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = textGlow;
+          ctx.beginPath();
+          ctx.arc(0, 0, 260, 0, Math.PI * 2);
+          ctx.fill();
+
+          let fontSize = Math.min(width * 0.11, 74);
+          ctx.font = `600 ${fontSize}px 'Cinzel', serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          ctx.shadowColor = 'rgba(255, 192, 203, 0.95)';
+          ctx.shadowBlur = 30;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('I LOVE YOU', 0, 0);
+
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#fff0f5';
+          ctx.fillText('I LOVE YOU', 0, 0);
+
+          ctx.restore();
+        }
+
+        // 6. Warm Pulsing Romantic 3D Heart
+        if (heartOpacity > 0) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.globalAlpha = heartOpacity;
+
+          // Double-beat Natural Heartbeat Rhythm Factor
+          let beatFactor = 0;
+          if (state === 3) {
+            let cycle = (timestamp % 1200) / 1200;
+            if (cycle < 0.14) {
+              beatFactor = Math.sin((cycle / 0.14) * Math.PI) * 0.16;
+            } else if (cycle > 0.22 && cycle < 0.36) {
+              beatFactor = Math.sin(((cycle - 0.22) / 0.14) * Math.PI) * 0.1;
+            }
+          }
+
+          let heartScale = (minDim * 0.012) * (1 + beatFactor);
+          ctx.scale(heartScale, heartScale);
+
+          // Deep Soft Ambient Heart Glow
+          let heartGlow = ctx.createRadialGradient(0, 0, 10, 0, 0, 45);
+          heartGlow.addColorStop(0, 'rgba(244, 63, 94, 0.5)');
+          heartGlow.addColorStop(0.6, 'rgba(225, 29, 72, 0.25)');
+          heartGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = heartGlow;
+          ctx.beginPath();
+          ctx.arc(0, 0, 45, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Parametric Smooth Romantic Heart
+          ctx.beginPath();
+          for (let angle = 0; angle <= Math.PI * 2; angle += 0.02) {
+            let x = 16 * Math.pow(Math.sin(angle), 3);
+            let y = -(13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle));
+            if (angle === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+
+          // Rich Romantic Red-Rose Gradient
+          let heartGrad = ctx.createLinearGradient(-15, -20, 15, 20);
+          heartGrad.addColorStop(0, '#fb7185');
+          heartGrad.addColorStop(0.4, '#e11d48');
+          heartGrad.addColorStop(1, '#9f1239');
+
+          ctx.fillStyle = heartGrad;
+          ctx.shadowColor = 'rgba(244, 114, 182, 0.85)';
+          ctx.shadowBlur = 25;
+          ctx.fill();
+
+          // Smooth Interior Specular Light Highlights for 3D look
+          ctx.beginPath();
+          ctx.ellipse(-6, -8, 5, 2.5, -Math.PI * 0.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.shadowBlur = 0;
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      // --- MAIN ANIMATION LOOP ---
+      function animate(timestamp) {
+        ctx.clearRect(0, 0, width, height);
+
+        if (state === 0 && Date.now() > nextBlinkTime) {
+          triggerBlink(240);
+          nextBlinkTime = Date.now() + 3000 + Math.random() * 5000;
+        }
+
+        let eyeRadius = minDim * 0.22;
+        drawEye(width / 2, height / 2, eyeRadius);
+        drawRomanticSequence(timestamp);
+
+        requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>
